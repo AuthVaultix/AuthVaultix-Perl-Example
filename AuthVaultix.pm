@@ -6,7 +6,7 @@ use LWP::UserAgent;
 use HTTP::Request::Common qw(POST);
 use POSIX qw(strftime);
 #  Global Vars (Static style)
-my $BASE_URL = "https://api.authvaultix.com/api/1.2/";
+my $BASE_URL = "https://authvaultix.com/api/1.0/";  #  API endpoint
 our $AppInitialized = "no";
 our $SessionID = "none";
 our ($Name, $OwnerID, $Secret, $Version);
@@ -119,27 +119,34 @@ sub _send_request {
     my ($payload_ref) = @_;
 
     my $ua = LWP::UserAgent->new(
-        ssl_opts => { verify_hostname => 0 }
+        ssl_opts => { verify_hostname => 0 },
+        timeout  => 15
     );
+
+    # HEADERS (403 fix)
+    $ua->agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+    $ua->default_header('Accept' => 'application/json');
+    $ua->default_header('Content-Type' => 'application/x-www-form-urlencoded');
 
     my $response = $ua->post(
-        $BASE_URL,   # ONLY base URL
-        Content_Type => 'application/x-www-form-urlencoded',
-        Content      => $payload_ref
+        $BASE_URL,
+        Content => $payload_ref
     );
 
-    if ($response->is_success) {
-        my $raw = $response->decoded_content;
+   # print "Status: " . $response->status_line . "\n";  # DEBUG (helpful)
 
+    my $raw = $response->decoded_content;
+  #  print "Raw Response: $raw\n";   # remove later if not needed
+
+    if ($response->is_success) {
         my $json = eval { decode_json($raw) };
         if ($@) {
             die "Invalid JSON from server:\n$raw\n";
         }
-
         return $json;
     }
     else {
-        die "HTTP Request Failed: " . $response->status_line . "\n";
+        die "HTTP Request Failed: " . $response->status_line . "\nResponse: $raw\n";
     }
 }
 
