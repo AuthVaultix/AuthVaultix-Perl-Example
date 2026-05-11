@@ -1,0 +1,2 @@
+perl -v
+perl main.pl
