@@ -26,16 +26,16 @@ Initialize the SDK with your application credentials in your main script.
 ```perl
 use AuthVaultix;
 
-# Set your API credentials
-AuthVaultix::Api(
+# Initialize the client
+my $auth = AuthVaultixClient->new(
     "YourAppName",
     "YourOwnerID",
     "YourAppSecret",
     "1.0"
 );
 
-# Initialize the session
-AuthVaultix::Init();
+# Initialize connection
+$auth->init();
 ```
 
 ### 3. Authentication
@@ -43,13 +43,13 @@ Use the provided subroutines for user authentication.
 
 ```perl
 # Standard User Login
-AuthVaultix::Login("username", "password");
+$auth->login("username", "password");
 
 # User Registration with License Key
-AuthVaultix::Register("username", "password", "LICENSE-KEY");
+$auth->register("username", "password", "LICENSE-KEY");
 
 # License-only Login
-AuthVaultix::License("LICENSE-KEY");
+$auth->license_login("LICENSE-KEY");
 ```
 
 ---
@@ -63,13 +63,44 @@ AuthVaultix::License("LICENSE-KEY");
 
 ## 🛠️ API Reference
 
-| Subroutine | Description |
+### Authentication & Session
+| Method | Description |
 | :--- | :--- |
-| `Api(name, ownerid, secret, version)` | Configures the application credentials. |
-| `Init()` | Starts the session and connects to the server. |
-| `Login(user, pass)` | Authenticates a user with username and password. |
-| `Register(user, pass, key)` | Registers a new user using a license key. |
-| `License(key)` | Simple license-only login (no username required). |
+| `init()` | Initializes the secure session with the API. |
+| `login(user, pass)` | Authenticates the user and binds HWID. |
+| `register(user, pass, key, email?)` | Creates a new user with a license key. |
+| `license_login(license)` | Authenticates directly via license key. |
+| `check()` | Validates if the current session is still active. |
+| `logout()` | Invalidates current session and logs out. |
+
+### Account Management
+| Method | Description |
+| :--- | :--- |
+| `upgrade(username, license)` | Upgrades user's account/subscription. |
+| `forgot_password(username, email)` | Triggers a password reset email. |
+| `change_username(new_username)` | Changes the current user's username. |
+
+### Security & Blacklist
+| Method | Description |
+| :--- | :--- |
+| `ban(reason)` | Bans the currently authenticated user. |
+| `check_blacklist()` | Checks if the machine HWID is blacklisted. |
+| `log(message)` | Sends a log to the AuthVaultix dashboard. |
+
+### Variables & Data
+| Method | Description |
+| :--- | :--- |
+| `get_global_var(varid)` | Fetches a global server-side variable. |
+| `get_var(var_name)` | Fetches a user-specific server-side variable. |
+| `set_var(var_name, value)` | Sets a user-specific variable. |
+| `download(fileid)` | Securely downloads a file (returns decoded data). |
+
+### Communication
+| Method | Description |
+| :--- | :--- |
+| `fetch_online()` | Gets a list of currently online users. |
+| `chat_send(message, channel)` | Sends a chat message to a specific channel. |
+| `chat_fetch(channel)` | Retrieves chat history. |
 
 ---
 
