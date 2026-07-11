@@ -66,6 +66,102 @@ sub compile {
     return $self->{payload};
 }
 
+package SystemInfoCollector;
+use strict;
+use warnings;
+
+sub get_os_version {
+    if ($^O eq 'MSWin32') {
+        my $caption = `powershell -Command "(Get-CimInstance Win32_OperatingSystem).Caption" 2>nul`;
+        chomp($caption);
+        $caption =~ s/^\s+|\s+$//g;
+        if ($caption =~ /^Microsoft /) {
+            $caption =~ s/^Microsoft //;
+        }
+
+        my $version = `powershell -Command "(Get-CimInstance Win32_OperatingSystem).Version" 2>nul`;
+        chomp($version);
+        $version =~ s/^\s+|\s+$//g;
+
+        if ($caption eq "" && $version eq "") {
+            return "Windows";
+        }
+        return "$caption ($version)";
+    } elsif ($^O eq 'darwin') {
+        my $version = `sw_vers -productVersion 2>/dev/null`;
+        chomp($version);
+        return $version ne '' ? "macOS ($version)" : "macOS";
+    } elsif ($^O eq 'linux') {
+        my $version = `uname -sr 2>/dev/null`;
+        chomp($version);
+        return $version ne '' ? $version : "Linux";
+    }
+    return "Unknown OS";
+}
+
+sub get_platform {
+    return "native";
+}
+
+sub get_device_type {
+    return "Desktop";
+}
+
+sub get_architecture {
+    if ($^O eq 'MSWin32') {
+        return uc($ENV{PROCESSOR_ARCHITECTURE} || 'X64');
+    } else {
+        my $arch = `uname -m 2>/dev/null`;
+        chomp($arch);
+        return $arch ne '' ? uc($arch) : "X64";
+    }
+}
+
+sub get_cpu_cores {
+    if ($^O eq 'MSWin32') {
+        my $physical_cores = `powershell -Command "(Get-CimInstance Win32_Processor).NumberOfCores" 2>nul`;
+        chomp($physical_cores);
+        $physical_cores =~ s/^\s+|\s+$//g;
+        my $logical_processors = $ENV{NUMBER_OF_PROCESSORS} || "2";
+        my $cores = $physical_cores eq "" ? $logical_processors : $physical_cores;
+        return "$cores Cores / $logical_processors Threads";
+    } else {
+        my $logical = "2";
+        if ($^O eq 'darwin') {
+            $logical = `sysctl -n hw.ncpu 2>/dev/null`;
+        } else {
+            $logical = `nproc 2>/dev/null`;
+        }
+        chomp($logical);
+        $logical =~ s/^\s+|\s+$//g;
+        $logical = "2" if $logical eq '';
+        return "$logical Cores / $logical Threads";
+    }
+}
+
+sub get_ram_gb {
+    if ($^O eq 'MSWin32') {
+        my $ram = `powershell -Command "[Math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)" 2>nul`;
+        chomp($ram);
+        $ram =~ s/^\s+|\s+$//g;
+        return $ram ne "" ? $ram : "0";
+    } elsif ($^O eq 'darwin') {
+        my $bytes = `sysctl -n hw.memsize 2>/dev/null`;
+        chomp($bytes);
+        if ($bytes =~ /^\d+$/ && $bytes > 0) {
+            return int($bytes / (1024 * 1024 * 1024));
+        }
+        return "0";
+    } else {
+        my $kb = `grep MemTotal /proc/meminfo 2>/dev/null | awk '{print \$2}'`;
+        chomp($kb);
+        if ($kb =~ /^\d+$/ && $kb > 0) {
+            return int($kb / (1024 * 1024));
+        }
+        return "0";
+    }
+}
+
 package AuthVaultixCore;
 use strict;
 use warnings;
@@ -93,10 +189,12 @@ sub new {
 }
 
 sub hwid {
-    my $sid = `wmic useraccount where name='%username%' get sid /value 2>nul`;
-    $sid =~ s/SID=//;
-    chomp($sid);
-    $sid =~ s/^\s+|\s+$//g;
+    my $sid = "";
+    if ($^O eq 'MSWin32') {
+        $sid = `powershell -Command "[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value" 2>nul`;
+        chomp($sid);
+        $sid =~ s/^\s+|\s+$//g;
+    }
     return $sid || "UNKNOWN_HWID";
 }
 
@@ -138,6 +236,12 @@ sub authenticate_user {
         ->with_value("username", $username)
         ->with_value("pass", $password)
         ->with_value("hwid", $self->hwid())
+        ->with_value("os", SystemInfoCollector->get_os_version())
+        ->with_value("platform", SystemInfoCollector->get_platform())
+        ->with_value("device", SystemInfoCollector->get_device_type())
+        ->with_value("architecture", SystemInfoCollector->get_architecture())
+        ->with_value("cpu_cores", SystemInfoCollector->get_cpu_cores())
+        ->with_value("ram", SystemInfoCollector->get_ram_gb())
         ->compile();
         
     my $resp = NetworkAgent->post($BASE_URL, $payload);
