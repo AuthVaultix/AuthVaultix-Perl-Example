@@ -236,6 +236,7 @@ sub authenticate_user {
         ->with_value("username", $username)
         ->with_value("pass", $password)
         ->with_value("hwid", $self->hwid())
+        ->with_value("version", $self->{version})
         ->with_value("os", SystemInfoCollector->get_os_version())
         ->with_value("platform", SystemInfoCollector->get_platform())
         ->with_value("device", SystemInfoCollector->get_device_type())
@@ -290,6 +291,13 @@ sub register_account {
         ->with_value("key", $license)
         ->with_value("email", $email)
         ->with_value("hwid", $self->hwid())
+        ->with_value("version", $self->{version})
+        ->with_value("os", SystemInfoCollector->get_os_version())
+        ->with_value("platform", SystemInfoCollector->get_platform())
+        ->with_value("device", SystemInfoCollector->get_device_type())
+        ->with_value("architecture", SystemInfoCollector->get_architecture())
+        ->with_value("cpu_cores", SystemInfoCollector->get_cpu_cores())
+        ->with_value("ram", SystemInfoCollector->get_ram_gb())
         ->compile();
         
     my $resp = NetworkAgent->post($BASE_URL, $payload);
@@ -314,6 +322,13 @@ sub license_access {
         ->with_context($self->{app_name}, $self->{owner_id}, $self->{session_id})
         ->with_value("key", $license)
         ->with_value("hwid", $self->hwid())
+        ->with_value("version", $self->{version})
+        ->with_value("os", SystemInfoCollector->get_os_version())
+        ->with_value("platform", SystemInfoCollector->get_platform())
+        ->with_value("device", SystemInfoCollector->get_device_type())
+        ->with_value("architecture", SystemInfoCollector->get_architecture())
+        ->with_value("cpu_cores", SystemInfoCollector->get_cpu_cores())
+        ->with_value("ram", SystemInfoCollector->get_ram_gb())
         ->compile();
         
     my $resp = NetworkAgent->post($BASE_URL, $payload);
